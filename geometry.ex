@@ -4,11 +4,14 @@ defmodule Geom do
   """
 
   @doc """
-    This function calculates the area of a rectangle given its length and width.
+    This function calculates the area of the specified shape.
   """
-  @spec area(number(), number()) :: number()
-  def area(h, w) do
-    h * w
+  def area(shape, a, b) do
+    case shape do
+      :rectangle  -> a * b
+      :triangle   -> (a * b)/2.0
+      :elipse     -> a * b * :math.pi()  # a and m are major and minor radii
+    end
   end
 
 end
