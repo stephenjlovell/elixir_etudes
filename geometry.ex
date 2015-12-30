@@ -11,7 +11,7 @@ defmodule Geom do
     case shape do
       :rectangle  -> dim1 * dim2
       :triangle   -> (dim1 * dim2) / 2
-      :elipse     -> :math.pi() * dim1 * dim2
+      :ellipse     -> :math.pi() * dim1 * dim2
     end
   end
 
