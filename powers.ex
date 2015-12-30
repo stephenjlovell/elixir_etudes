@@ -9,11 +9,19 @@ defmodule Powers do
   end
 
   def pow(x, n) when n > 0 do
-    x * pow(x, n-1)
+    pow(x, n, 1)
   end
 
   def pow(x, n) when n < 0 do
     1.0 / pow(x, -n)
+  end
+
+  defp pow(_, 0, acc) do
+    acc
+  end
+
+  defp pow(x, n, acc) do
+    pow(x, n-1, acc * x)
   end
 
 end
