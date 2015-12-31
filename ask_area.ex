@@ -32,21 +32,14 @@ defmodule AskArea do
 
   @spec get_dimension(String.t()) :: number()
   defp get_dimension(name) do
-    try do
-      dim = String.to_integer(String.strip(IO.gets("Enter #{name}: ")))
-      if dim <= 0 do
-        try_again("#{name} must be a number greater than zero.", name)
-      else
-        dim
-      end
-    rescue
-      ArgumentError -> try_again("Invalid entry (must be numeric)", name)
+    str = String.strip(IO.gets("Enter #{name}: "))
+    cond do
+      Regex.match?(~r/^[0-9]+\.[0-9]+(e[0-9]+)?$/, str) -> String.to_float(str) # match floats with or without exponents.
+      Regex.match?(~r/[0-9]+/, str) -> String.to_integer(str)
+      true ->
+        IO.puts("Invalid entry #{str} (must be numeric)")
+        get_dimension(name) # instead of returning an error, give the user another chance.
     end
-  end
-
-  defp try_again(msg, name) do
-    IO.puts(msg)
-    get_dimension(name)
   end
 
 end
