@@ -8,6 +8,24 @@ defmodule Geography do
     defstruct name: "", population: 0, latitude: 0.0, longitude: 0.0
   end
 
+  defprotocol Valid do
+    @doc "returns true if city data is considered valid"
+    def valid?(_)
+  end
+
+  defimpl Valid, for: City do
+    def valid?(city) do
+      city.population >= 0 and city.latitude >= -90 and city.latitude <= 90 and city.longitude >= -180 and city.longitude <= 180
+    end
+  end
+
+  defimpl Inspect, for: City do
+    def inspect(city, _opts)  do
+      "#{city.name} (#{city.population}) #{city.latitude}°N #{city.longitude}°W"
+    end
+  end
+
+
   def geo_list_test do
     make_geo_list("geography.csv")
   end

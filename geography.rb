@@ -12,6 +12,14 @@ module Geography
     def initialize(name, population, latitude, longitude)
       @name, @population, @latitude, @longitude = name, population.to_i, latitude.to_f, longitude.to_f
     end
+
+    def valid?
+      @population >= 0 && @latitude >= -90 && @latitude <= 90 && @longitude >= -180 && longitude <= 180
+    end
+
+    def inspect
+      "#{@name} (#{@population}) #{@latitude}°N #{@longitude}°W"
+    end
   end
 
   def self.make_geo_list(file = "geography.csv")
