@@ -16,7 +16,7 @@ defmodule Cards do
     shuffle(list, [])
   end
 
-  @doc "returns the shuffled cards."
+  # returns the shuffled cards.
   defp shuffle([], shuffled) do
     shuffled
   end
