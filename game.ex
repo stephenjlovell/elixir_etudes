@@ -3,10 +3,13 @@ defmodule Game do
   @vsn 1.0
   require Player
 
-  def play(num_players) do
-    deck = Cards.make_deck() |> Cards.shuffle()
-    players = spawn_players(Enum.chunk(deck, round(52/num_players)), [])
-    play(players, [], 1)
+  def start(num_players) do
+    deck = Cards.make_deck() |> Cards.shuffle() |> add_values()
+    # chunking may burn a card or two, but each player will have the same number
+    # of cards to start.
+    hands = Enum.chunk(deck, round(52/num_players))
+    players = spawn_players(hands, [])
+    play_game(players, 1)
   end
 
   # spawns num_players Player processes and returns a list of PIDs
@@ -16,33 +19,58 @@ defmodule Game do
     spawn_players(hands, [player|players])
   end
 
-  defp play(players, pot, num_cards) do
-    {flop, in_play, remaining_players} = get_cards(players, num_cards)
-
-    case evaluate(in_play) do
-      {:war, current_players} ->
-        IO.puts("It's a war!")
-        play(current_players, flop ++ pot, 3)
-      {:winning_hand, player} ->
-        send(player, {:take_cards, flop ++ pot})
-        play(remaining_players, [], 1)
-      {:game_over, winner} ->
-        IO.puts("Player has won the game!")
+  defp play_game(players, round) do
+    IO.puts("round #{round}")
+    # Make sure players are ready to participate in this round.
+    for p <- players, do: send(p, :ready_up)
+    players = get_players([], Enum.count(players))
+    # The game ends when only one player is left.
+    unless Enum.count(players) == 1 do
+      play_round(players, [], 1)
+      play_game(players, round+1)
+    else
+      IO.puts("player #{inspect hd(players)} wins!" )
     end
   end
 
-  def evaluate(in_play) do
-    if Enum.count(in_play) == 1 do
-      {player, _value} = hd(in_play)
-      {:game_over, player}
+  defp get_players(players, 0), do: players
+  defp get_players(players, num_players) do
+    receive do
+      {:ok, cards, player} ->
+        IO.puts("player #{inspect player} has #{cards} cards")
+        get_players([player|players], num_players-1)
+      {:forfeit, player} ->
+        IO.puts("player #{inspect player} forfeits")
+        get_players(players, num_players-1)
+    end
+  end
+
+
+  defp play_round(players, pot, num_cards) do
+    played = get_cards(players, num_cards)
+    {new_players, flop} = evaluate(played)
+    if Enum.count(new_players) == 1 do
+      send(hd(new_players), {:take_cards, pot ++ flop})
     else
-      max = Stats.maximum(for {_p,v} <- in_play, do: v)
-      players = for {p,_v} <- in_play, fn {_p,v} -> v == max end, do: p
-      if Enum.count(players) == 1 do
-        {:winning_hand, hd(players)}
-      else
-        {:war, players}
-      end
+      IO.puts(" ---- It's a war! ----")
+      play_round(new_players, pot ++ flop, 3)
+    end
+  end
+
+
+  # Gather up the cards from this flop and determine the player(s) with the highest hand.
+  defp evaluate(played) do
+    max = Stats.maximum(for {[{_f, _s, val}|_tl], _p} <- played, do: val)
+    evaluate(played, max, [], [])
+  end
+
+  defp evaluate([], _max, players, pot), do: {players, pot}
+  defp evaluate([{cards, player}|tl], max, players, pot) do
+    {_f, _s, val} = hd(cards)
+    if val == max do
+      evaluate(tl, max, [player|players], pot ++ cards)
+    else
+      evaluate(tl, max, players, pot ++ cards)
     end
   end
 
@@ -53,36 +81,37 @@ defmodule Game do
 
   # receives cards sent by each player and determines the winner of the
   # current flop.
-  defp receive_cards(num_players) do
-    receive_cards(num_players, [], [])
-  end
-
-  defp receive_cards(0, pot, in_play) do
-    { pot, in_play, (for {p,_v} <- in_play, do: p) }
-  end
-
-  defp receive_cards(num_players, pot, in_play) do
+  defp receive_cards(num_players), do: receive_cards(num_players, [])
+  defp receive_cards(0, played), do: played
+  defp receive_cards(num_players, played) do
     receive do
-      {:forfeit, player} ->
-        receive_cards(num_players-1, pot, in_play)
+      {:forfeit, _player} ->
+        IO.puts("Player forfeits round.")
+        receive_cards(num_players-1, played)
       {:take_cards, cards, player} ->
-        value = { player, card_value(hd(cards)) }
-        receive_cards(num_players-1, cards ++ pot, [value|in_play])
+        receive_cards(num_players-1, [{cards, player}|played])
     end
   end
 
+  @doc """
+  takes list of tuples representing a deck of cards and appends the value of each card
+  according to the card game War.
+  """
+  @spec add_values([tuple()]) :: [tuple()]
+  def add_values(cards) do
+    for {face, suit} <- cards, do: {face, suit, card_value({face, suit})}
+  end
 
-
-  def card_value({value, _suit}) do
-    case value do
+  @doc "determines the value of the given card."
+  @spec card_value(tuple()) :: number()
+  def card_value({face, _suit}) do
+    case face do
       "J" -> 11
       "Q" -> 12
       "K" -> 13
       "A" -> 14
-      _   -> value
+      _   -> face
     end
   end
-
-
 
 end
